@@ -1,0 +1,44 @@
+:root {
+    --brand-color: #2a3e5a;
+    --primary-color: #00509e;
+    --label-text: #424242;
+    --heading-text: #5a5a5a;
+    --muted-text: #a0a0a0;
+    --panel-background: #fff;
+    --draft-background: #dadada;
+    --reviewed-background: #FFD4C6;
+    --reviewed-text: #B52A00;
+    --executable-background: #C0F9DF;
+    --executable-text: #004826;
+}
+
+html, body {
+    margin: 0;
+    min-height: 100%;
+    background: #f8f8f8;
+    color: #424242;
+    font-family: 'Roboto', sans-serif;
+    letter-spacing: 0;
+}
+
+* { box-sizing: border-box; }
+
+h1:focus { outline: none; }
+
+.blazor-error-boundary {
+    padding: 16px;
+    background: #b32121;
+    color: #fff;
+}
+
+.blazor-error-boundary::after { content: 'An error has occurred.'; }
+
+.mud-button-root, .mud-tab { text-transform: none; letter-spacing: 0; }
+.mud-typography { letter-spacing: 0; }
+.side-panel { padding: 16px; width: 100%; }
+.configuration-drawer, .notes-drawer { max-width: 100vw; }
+.drawer-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+.drawer-title .mud-typography { font-size: 20px; font-weight: 600; }
+.drawer-fields { display: grid; gap: 20px; }
+.drawer-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.positive-value { color: #007834; font-weight: 600; }

@@ -1,0 +1,167 @@
+@page "/recommendations/{PlanningCycleId}/{Id}"
+@attribute [Authorize]
+@inject ModelsApiClient ModelsApiClient
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Model Recommendations - VCO DST</PageTitle>
+
+<section class="recommendation-page">
+    <MudButton Href="/model-history" StartIcon="@Icons.Material.Filled.ArrowBack" Color="Color.Primary">Model History</MudButton>
+    <MudText Typo="Typo.h1" Class="recommendation-title">Recommendations</MudText>
+    @if (_loading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (_hasError)
+    {
+        <MudAlert Severity="Severity.Error">Failed to load model details from API.</MudAlert>
+    }
+    else if (Model is not null)
+    {
+        <ModelSummary Model="Model" />
+        <MudPaper Elevation="0" Class="mt-6 pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Update model</MudText>
+            <EditForm Model="_updateRequest" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="_updateRequest.Status" Label="Status" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("Draft")">Draft</MudSelectItem>
+                            <MudSelectItem Value="@("Reviewed")">Reviewed</MudSelectItem>
+                            <MudSelectItem Value="@("Executable")">Executable</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" @bind-Value="_updateRequest.ModelType" Label="Model Type" Variant="Variant.Outlined" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" @bind-Value="_updateRequest.ScopeType" Label="Scope Type" Variant="Variant.Outlined" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" @bind-Value="_updateRequest.ScopeName" Label="Scope Name" Variant="Variant.Outlined" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField T="decimal" @bind-Value="_updateRequest.EthanePriceUsdPerGal" Label="Ethane Price ($/gal)" Variant="Variant.Outlined" Min="0.01m" Step="0.01m" Format="0.00" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField T="decimal" @bind-Value="_updateRequest.NaturalGasPriceUsdPerMmbtu" Label="NAT Gas Price ($/MMBtu)" Variant="Variant.Outlined" Min="0.01m" Step="0.01m" Format="0.00" Required="true" />
+                    </MudItem>
+                </MudGrid>
+                <div class="d-flex gap-2 mt-4">
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving">Save</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DeleteAsync" Disabled="_saving">Delete</MudButton>
+                </div>
+            </EditForm>
+        </MudPaper>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Warning">Model not found.</MudAlert>
+    }
+</section>
+
+@code {
+    [Parameter] public string PlanningCycleId { get; set; } = string.Empty;
+    [Parameter] public string Id { get; set; } = string.Empty;
+    private bool _loading;
+    private bool _hasError;
+    private bool _saving;
+    private ModelRun? Model { get; set; }
+    private readonly ModelUpsertRequest _updateRequest = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _hasError = false;
+        Model = null;
+
+        try
+        {
+            Model = await ModelsApiClient.GetModelAsync(PlanningCycleId, Id);
+
+            if (Model is not null)
+            {
+                _updateRequest.Status = Model.Status.ToString();
+                _updateRequest.ScopeType = Model.Scope;
+                _updateRequest.ScopeName = Model.Location;
+                _updateRequest.ModelType = Model.ModelType;
+                _updateRequest.EthanePriceUsdPerGal = Model.EthanePrice;
+                _updateRequest.NaturalGasPriceUsdPerMmbtu = Model.NaturalGasPrice;
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+        {
+            _hasError = true;
+            Snackbar.Add("Could not load recommendation model details from API.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+
+        try
+        {
+            ModelRun? updated =
+                await ModelsApiClient.UpdateModelAsync(
+                    PlanningCycleId,
+                    Id,
+                    _updateRequest);
+
+            if (updated is null)
+            {
+                Snackbar.Add("Model not found.", Severity.Warning);
+                return;
+            }
+
+            Model = updated;
+
+            Snackbar.Add("Model updated.", Severity.Success);
+        }
+        catch (Exception exception)
+            when (exception is HttpRequestException or InvalidOperationException or ArgumentException)
+        {
+            Snackbar.Add($"Could not update model: {exception.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        _saving = true;
+
+        try
+        {
+            bool deleted =
+                await ModelsApiClient.DeleteModelAsync(
+                    PlanningCycleId,
+                    Id);
+
+            if (!deleted)
+            {
+                Snackbar.Add("Model not found.", Severity.Warning);
+                return;
+            }
+
+            Snackbar.Add("Model deleted.", Severity.Success);
+            Navigation.NavigateTo("/model-history");
+        }
+        catch (Exception exception)
+            when (exception is HttpRequestException or InvalidOperationException or ArgumentException)
+        {
+            Snackbar.Add($"Could not delete model: {exception.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

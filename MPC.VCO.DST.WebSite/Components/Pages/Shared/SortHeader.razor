@@ -1,0 +1,16 @@
+<span class="sort-header">
+<MudTooltip Text="@($"Sort by {Title.ToLowerInvariant()}")">
+    <MudButton Class="sort-button" OnClick="Sort" aria-label="@($"Sort by {Title.ToLowerInvariant()}")">
+        <span>@Title</span>
+        <img src="assets/sort.svg" alt="" class="@(Active ? "active" : string.Empty)" />
+    </MudButton>
+</MudTooltip>
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Column { get; set; } = string.Empty;
+    [Parameter] public bool Active { get; set; }
+    [Parameter] public EventCallback<SortRequest> SortChanged { get; set; }
+    private Task Sort(MouseEventArgs args) => SortChanged.InvokeAsync(new(Column, args.ShiftKey));
+}

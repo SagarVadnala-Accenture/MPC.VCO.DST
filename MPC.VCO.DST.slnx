@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="MPC.VCO.DST.Application/MPC.VCO.DST.Application.csproj" Id="3af7628f-55d4-4893-bd90-9a3bec1cdcc2" />
+  <Project Path="MPC.VCO.DST.Domain/MPC.VCO.DST.Domain.csproj" Id="a472e345-e1c5-46b2-a6a6-0dacda305211" />
+  <Project Path="MPC.VCO.DST.Infrastructure/MPC.VCO.DST.Infrastructure.csproj" Id="a6d2ed42-f394-4515-811e-83e03cfec8bc" />
+  <Project Path="MPC.VCO.DST.Tests/MPC.VCO.DST.Tests.csproj" />
+  <Project Path="MPC.VCO.DST.WebSite.API/MPC.VCO.DST.WebSite.API.csproj" Id="53287854-49cd-4432-8baf-bceb2f47b496" />
+  <Project Path="MPC.VCO.DST.WebSite/MPC.VCO.DST.WebSite.csproj" />
+</Solution>

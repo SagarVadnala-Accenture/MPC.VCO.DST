@@ -1,0 +1,49 @@
+<div class="cycle-card-host">
+    <div class="cycle-card @(Selected ? "selected" : string.Empty)"
+         role="button"
+         tabindex="0"
+         aria-pressed="@Selected.ToString().ToLowerInvariant()"
+         @onclick="SelectPeriodAsync"
+         @onkeydown="HandleKeyDownAsync">
+        <div class="cycle-heading">
+            <div><span class="cycle-caption">Planning Cycle</span><strong>@Cycle.Title</strong></div>
+            <span class="cycle-tag">@PeriodLabel</span>
+        </div>
+        <dl class="cycle-metrics">
+            <div>
+                <dt>Published Model ID</dt>
+                <dd class="model-id-value" title="@DisplayModelId">
+                    @if (!string.IsNullOrWhiteSpace(Cycle.BestModelId))
+                    {
+                        <MudLink Href="@($"/optimizer/{Uri.EscapeDataString(Cycle.BestModelId)}")"
+                                 Class="model-id-link"
+                                 @onclick:stopPropagation="true"
+                                 @onkeydown:stopPropagation="true">@Cycle.BestModelId</MudLink>
+                    }
+                    else
+                    {
+                        @DisplayModelId
+                    }
+                </dd>
+            </div>
+          @*   <div><dt>Average<br />Recovery Position</dt><dd>@(Cycle.Recovery is int recovery ? $"{recovery}%" : "—")</dd></div> *@
+            <div><dt>Expected Portfolio Value</dt><dd class="positive-value">@(Cycle.ExpectedValue is int value ? $"{(value > 0 ? "+" : string.Empty)}${value}K/mo" : "—")</dd></div>
+        </dl>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlanningCycle Cycle { get; set; } = default!;
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public EventCallback<DateOnly> SelectedChanged { get; set; }
+    private static DateOnly CurrentPeriod => new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+    private string DisplayModelId => string.IsNullOrWhiteSpace(Cycle.BestModelId) ? "—" : Cycle.BestModelId;
+
+    private Task SelectPeriodAsync() => SelectedChanged.InvokeAsync(Cycle.Period);
+
+    private Task HandleKeyDownAsync(KeyboardEventArgs args) =>
+        args.Key is "Enter" or " " ? SelectPeriodAsync() : Task.CompletedTask;
+
+    private string PeriodLabel => Cycle.Period < CurrentPeriod ? "Previous Cycles" :
+        Cycle.Period == CurrentPeriod ? "Current Planning Cycle" : "Next Planning Cycle";
+}

@@ -1,0 +1,30 @@
+.application-header { position: sticky; top: 0; z-index: 100; }
+.header-bar {
+    min-height: 78px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    background: var(--brand-color);
+    color: var(--light-text);
+}
+.brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+.brand img { display: block; }
+.brand strong { display: block; font: 600 18px/23px var(--font-family-ui); }
+.brand span { display: block; font: 500 12px/23px var(--font-family-ui); }
+.account { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.current-date { margin-right: 8px; white-space: nowrap; }
+.account-divider { width: 1px; height: 28px; background: var(--divider-on-dark); margin: 0 8px; }
+.account ::deep .user-avatar { background: var(--avatar-background); color: var(--avatar-text); font: 700 12px var(--font-family-ui); }
+.account ::deep a.logout-button { display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--logout-text) !important; padding: 0; min-width: 0; margin-left: 8px; font: 600 14px/24px var(--font-family-body); letter-spacing: 0.25px; text-decoration: underline; text-transform: none; }
+.breadcrumb { height: 40px; display: flex; align-items: center; padding: 8px 24px; background: var(--panel-background); box-shadow: var(--shadow-soft); }
+.breadcrumb ::deep .home-link { display: inline-flex; align-items: center; gap: 4px; color: var(--navigation-text); font: 500 14px/20px var(--font-family-ui); }
+.breadcrumb ::deep img { display: block; }
+@media (max-width: 900px) { .current-date, .account-divider { display: none; } }
+@media (max-width: 600px) {
+    .header-bar { padding: 12px 16px; gap: 12px; }
+    .brand span { display: none; }
+    .account > span:not(.account-divider) { display: none; }
+    .breadcrumb { padding-inline: 16px; }
+}

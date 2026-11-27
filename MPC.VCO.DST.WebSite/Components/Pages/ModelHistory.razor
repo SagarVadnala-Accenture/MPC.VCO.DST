@@ -1,0 +1,165 @@
+@page "/"
+@page "/model-history"
+@attribute [Authorize]
+<script type="module" src="@Assets["Components/Pages/ModelHistory.razor.js"]"></script>
+
+<PageTitle>VCO DST - Model History</PageTitle>
+
+<div class="dashboard">
+	@if (_hasError)
+	{
+		<section class="error-surface" role="alert">
+			<div class="state-message error-message">
+				<span class="state-icon"><img src="assets/error.svg" alt="" /></span>
+				<MudText Typo="Typo.h1">Could not load data</MudText>
+				<MudText>There was a problem connecting to the data source.</MudText>
+				<MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="Retry">Retry</MudButton>
+			</div>
+		</section>
+	}
+	else
+	{
+		<section class="cycle-navigation" aria-label="Planning cycles">
+			<div class="cycle-arrow-position previous-position">
+			<MudTooltip Text="Previous planning cycle">
+				<MudButton Class="cycle-arrow previous-cycle" OnClick="() => SelectPeriod(_period.AddMonths(-1))" Disabled="@(_period <= MinimumPeriod)" aria-label="Previous planning cycle"><span class="arrow-image"><img src="assets/cycle-chevron.svg" alt="" /></span></MudButton>
+			</MudTooltip>
+			</div>
+			<div class="cycle-grid">
+				@foreach (var period in VisiblePeriods)
+				{ 
+					<div class="cycle-slot" @key="period"><PlanningCycleCard Cycle="GetCycle(period)" Selected="@(period == _period)" SelectedChanged="SelectPeriod" /></div>
+				}
+			</div>
+			<div class="cycle-arrow-position next-position">
+			<MudTooltip Text="Next planning cycle">
+				<MudButton Class="cycle-arrow next-cycle" OnClick="() => SelectPeriod(_period.AddMonths(1))" Disabled="@(_period >= MaximumPeriod)" aria-label="Next planning cycle"><img src="assets/cycle-chevron.svg" alt="" /></MudButton>
+			</MudTooltip>
+			</div>
+		</section>
+
+		<section class="history-panel" aria-labelledby="history-title">
+			<div class="history-toolbar">
+				<MudText Typo="Typo.h1" id="history-title">Model History</MudText>
+				<MudChip T="string" Variant="Variant.Outlined" Class="period-chip">@GetCycle(_period).Title</MudChip>
+				<MudTextField T="string" Value="_search" ValueChanged="SearchChanged" Immediate="true" DebounceInterval="150" Placeholder="Type to search..." Variant="Variant.Outlined" Margin="Margin.Dense" Class="model-search" InputId="model-search" aria-label="Search model history" />
+				@if (!string.IsNullOrWhiteSpace(_search))
+				{
+					<div class="search-result" role="status">
+						<span>@_filtered.Count @(_filtered.Count == 1 ? "result" : "results") for "@_search"</span>
+						<MudButton Class="search-clear" OnClick="() => SearchChanged(string.Empty)" aria-label="Clear search"><img src="assets/search-close.svg" alt="" /></MudButton>
+					</div>
+				}
+				<div class="toolbar-spacer"></div>
+				@if (ReadOnly)
+				{
+					<div class="readonly-message"><img src="assets/lock.svg" alt="" /><span>Historical Period - Read Only | To create a run, switch to current or next period.</span></div>
+				}
+				else
+				{
+					<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="create-model" OnClick="OpenCreateModel">Create a Model</MudButton>
+				}
+			</div>
+			@if (CycleHasModels)
+			{
+				<MudTabs ActivePanelIndex="_tabIndex" ActivePanelIndexChanged="TabChanged" SliderColor="Color.Secondary" MinimumTabWidth="0" Class="model-tabs" KeepPanelsAlive="true">
+					@foreach (var tab in Tabs)
+					{ <MudTabPanel Text="@tab" /> }
+				</MudTabs>
+			}
+			<div class="table-scroll" tabindex="0" role="region" aria-label="Model history table">
+				<MudTable T="ModelRun" Items="VisibleRows" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0" Class="history-table" Loading="@_loadingModels">
+					<ColGroup>
+						@foreach (var column in Columns)
+						{ <col style="@($"width:{column.Width}px")" /> }
+						<col style="width:92px" />
+					</ColGroup>
+					<HeaderContent>
+						@foreach (var column in Columns)
+						{
+							<MudTh aria-sort="@AriaSort(column.Key)"><SortHeader Title="@column.Title" Column="@column.Key" Active="@IsSorted(column.Key)" SortChanged="SortChanged" /></MudTh>
+						}
+						<MudTh Class="actions-heading">ACTIONS</MudTh>
+					</HeaderContent>
+					<RowTemplate>
+						<MudTd><MudLink Href="@($"/optimizer/{Uri.EscapeDataString(context.Id)}")" Class="model-id">@context.Id</MudLink></MudTd>
+						<MudTd>@context.CreatedOn.ToString("MM/dd/yyyy")</MudTd>
+						<MudTd><ModelLabel Text="@context.Status.ToString()" Color="@GetStatusColor(context.Status)" /></MudTd>
+						<MudTd Class="scope-cell"><span>@context.Scope</span><small>@context.Location</small></MudTd>
+						<MudTd Class="model-type-cell"><ModelLabel Text="@context.ModelType" Variant="Variant.Outlined" /></MudTd>
+						<MudTd>$@context.EthanePrice.ToString("0.00")/gal</MudTd>
+						<MudTd>$@context.NaturalGasPrice.ToString("0.00")/gal</MudTd>
+						@* <MudTd Class="recovery-cell">@context.RecoveryText</MudTd> *@
+						<MudTd Class="positive-value expected-value">@context.ExpectedValueText</MudTd>
+						<MudTd>
+							<div class="row-actions">
+								<MudTooltip Text="Open model notes">
+									<MudButton id="@GetNotesActionButtonId(context)"	
+											   Class="row-action"
+											   OnClick="() => OpenNotesDrawerAsync(context)"
+											   aria-label="@($"Open notes for model {context.Id}")">
+										<img src="assets/notes.svg" alt="" />
+									</MudButton>
+								</MudTooltip>
+								<MudTooltip Text="Open model recommendation">
+									<MudButton Class="row-action"
+											   Href="@($"/recommendations/{context.PlanningCycleId}/{context.Id}")"
+											   aria-label="@($"Open recommendation for model {context.Id}")">
+										<img src="assets/export.svg" alt="" />
+									</MudButton>
+								</MudTooltip>
+							</div>
+						</MudTd>
+					</RowTemplate>
+					<NoRecordsContent>
+						<div class="state-message empty-message" role="status">
+							<span class="state-icon"><img src="assets/play.svg" alt="" /></span>
+							<MudText Typo="Typo.h2">@(CycleHasModels ? "No matching models" : "No Models yet")</MudText>
+							<MudText>@(CycleHasModels ? "Try a different search or model type." : "Configure your first model run to see recommendations.")</MudText>
+						</div>
+					</NoRecordsContent>
+					<LoadingContent>
+						<div class="state-message" role="status">
+							<MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+							<MudText>Loading models from API...</MudText>
+						</div>
+					</LoadingContent>
+				</MudTable>
+			</div>
+			@if (PageCount > 1)
+			{
+				<nav class="table-pagination" aria-label="Model history pages">
+					<MudButton Class="page-arrow" Disabled="@(_page == 1)" OnClick="() => SetPage(_page - 1)" aria-label="Previous page"><img src="assets/previous.svg" alt="" /></MudButton>
+					@for (var index = 1; index <= PageCount; index++)
+					{
+						var pageNumber = index;
+						<MudButton Class="page-number" Color="Color.Primary" Variant="@(pageNumber == _page ? Variant.Filled : Variant.Text)" OnClick="() => SetPage(pageNumber)" aria-label="@($"Page {pageNumber}")" aria-current="@(pageNumber == _page ? "page" : null)">@pageNumber</MudButton>
+					}
+					<MudButton Class="page-arrow" Disabled="@(_page == PageCount)" OnClick="() => SetPage(_page + 1)" aria-label="Next page"><img src="assets/next.svg" alt="" /></MudButton>
+				</nav>
+			}
+		</section>
+	}
+</div>
+
+@if (_createOpen)
+{
+	<CreateModelDrawer Open="_createOpen" OpenChanged="CreateOpenChanged" ModelCreated="CreateModelAsync" />
+}
+
+@if (_notesOpen)
+{
+	<ModelNotesDrawer Open="_notesOpen"
+					  OpenChanged="NotesOpenChanged"
+					  Model="_selectedModel"
+					  Loading="_loadingNotes"
+					  LoadingError="_notesError"
+					  Notes="_notes"
+					  NoteDraft="@_noteDraft"
+					  NoteDraftChanged="NoteDraftChanged"
+					  Mentions="_noteMentions"
+					  MentionsChanged="NoteMentionsChanged"
+					  Posting="_postingNote"
+					  RetryRequested="RetryNotesAsync"
+					  PostRequested="PostNoteAsync" />
+} 

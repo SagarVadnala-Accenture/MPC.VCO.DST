@@ -1,0 +1,411 @@
+@page "/optimizer"
+@page "/optimizer/{ModelId}"
+@attribute [Authorize]
+@using System.Globalization
+@using MudBlazor.Charts
+@using MPC.VCO.DST.WebSite.Services.Optimizer.Models
+
+<PageTitle>Optimizer - VCO DST</PageTitle>
+
+<section class="optimizer-page @(_isLoading ? "loading" : string.Empty)">
+    <MudStack Spacing="0" Class="page-heading">
+        <MudText Typo="Typo.h1" Class="optimizer-title">Optimizer</MudText>
+        <MudText Class="optimizer-subtitle">Optimize plant train ethane recovery schedules to maximize portfolio value.</MudText>
+    </MudStack>
+
+    <MudGrid Spacing="3" Class="optimizer-grid">
+        <MudItem xs="12" md="4">
+            <MudPaper Elevation="0" Class="optimizer-panel parameter-panel">
+                <MudText Typo="Typo.h2">Optimization</MudText>
+                <MudTabs ActivePanelIndex="_selectedVersionIndex"
+                         ActivePanelIndexChanged="VersionChanged"
+                         SliderColor="Color.Primary"
+                         MinimumTabWidth="0"
+                         KeepPanelsAlive="true"
+                         Class="version-tabs">
+                    @foreach (string versionName in VersionNames)
+                    {
+                        <MudTabPanel Text="@versionName" Disabled="_isLoading" />
+                    }
+                </MudTabs>
+
+                <MudText Typo="Typo.h3" Class="left-section-heading">Planning Period</MudText>
+                <MudGrid Spacing="1" Class="parameter-fields date-fields">
+                    <MudItem xs="6">
+                        <MudDatePicker @bind-Date="PlanningStartDatePickerValue" Label="Start Date *" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudDatePicker @bind-Date="PlanningEndDatePickerValue" Label="End Date *" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudPaper Elevation="0" Class="duration-summary">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" />
+                            <MudStack Spacing="0">
+                                <MudText Class="duration-title">Planning Duration</MudText>
+                                <MudText Class="duration-value">
+                                    @(PlanningDuration > 0 ? $"{PlanningDuration} days" : "Select valid dates")
+                                    @if (PlanningDuration > 0)
+                                    {
+                                        <span class="duration-note">(inclusive)</span>
+                                    }
+                                </MudText>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+                @if (_planningStartDate is null || _planningEndDate is null || !IsPlanningPeriodValid)
+                {
+                    <MudText Class="field-validation">
+                        @(_planningStartDate is null || _planningEndDate is null
+                            ? "Both planning dates are required."
+                            : PlanningDuration < 1
+                                ? "End date must be on or after start date."
+                                : "Planning period cannot exceed 90 inclusive days.")
+                    </MudText>
+                }
+
+                <MudText Typo="Typo.h3" Class="left-section-heading">Optimization Parameters</MudText>
+                <MudGrid Spacing="1" Class="parameter-fields input-grid">
+                    <MudItem xs="6">
+                        <MudNumericField T="double" @bind-Value="_ethanePriceShiftPct" Label="Ethane Price Shift (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="double" @bind-Value="_gasPriceShiftPct" Label="Gas Price Shift (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="double" @bind-Value="_tfFee" Label="Transportation Fee (USD/bbl)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="double" @bind-Value="_ethaneHeatingValue" Label="Ethane Heating Value (MMBtu/bbl)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="double?" @bind-Value="_takeawayBblPerDay" Label="Takeaway (bbl/day)" Placeholder="Optional" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField T="double" @bind-Value="_kFix" Label="Fixed Change Cost, Kfix (USD)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="double" @bind-Value="_kVar" Label="Variable Change Cost, Kvar (USD)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="int" @bind-Value="_maxChangesPerTrain" Label="Maximum Changes per Train" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="int" @bind-Value="_minHoldDays" Label="Minimum Hold Days" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudNumericField T="int" @bind-Value="_timeLimitSec" Label="Time Limit (seconds)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="parameter-help-label">
+                            <MudText Typo="Typo.caption">MIP Gap</MudText>
+                            <MudTooltip Text="Allowed from 0 to 1. Smaller values request a tighter solver optimality gap.">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Primary" />
+                            </MudTooltip>
+                        </MudStack>
+                        <MudNumericField T="double" @bind-Value="_mipGap" Label="MIP Gap (0-1)" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_isLoading" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudExpansionPanels Class="train-overrides">
+                    <MudExpansionPanel Text="Train Overrides (Optional)" Dense="true" Disabled="_isLoading">
+                        <MudText Typo="Typo.body2" Class="panel-subtitle">Override recovery settings for specific trains.</MudText>
+                        @if (CurrentScenario.KnownTrainIds.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="empty-state">Train IDs become available from a successful optimizer response. No train IDs will be invented or sent.</MudText>
+                        }
+                        else
+                        {
+                            @foreach (string trainId in CurrentScenario.KnownTrainIds)
+                            {
+                                TrainSettingsDto settings = CurrentScenario.TrainOverrides[trainId];
+                                <MudPaper Elevation="0" Class="train-override-row">
+                                    <MudCheckBox T="bool" Value="@IsTrainOverrideEnabled(trainId)"
+                                                 ValueChanged="@(enabled => SetTrainOverrideEnabled(trainId, enabled))"
+                                                 Label="@trainId" Color="Color.Primary" />
+                                    @if (IsTrainOverrideEnabled(trainId))
+                                    {
+                                        <MudGrid Spacing="1">
+                                            <MudItem xs="6" sm="2"><MudNumericField T="double" @bind-Value="settings.RMin" Label="RMin" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                                            <MudItem xs="6" sm="2"><MudNumericField T="double" @bind-Value="settings.RMax" Label="RMax" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                                            <MudItem xs="6" sm="2"><MudNumericField T="double" @bind-Value="settings.R0" Label="R0" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                                            <MudItem xs="6" sm="3"><MudNumericField T="double?" @bind-Value="settings.LockedAt" Label="Locked At" Placeholder="Optional" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                                            <MudItem xs="12" sm="3"><MudNumericField T="double" @bind-Value="settings.COp" Label="COp" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                                        </MudGrid>
+                                    }
+                                </MudPaper>
+                            }
+                        }
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+
+                @if (_clientValidationErrors.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Warning" Class="result-error">
+                        <ul class="validation-list">
+                            @foreach (string validationError in _clientValidationErrors)
+                            {
+                                <li>@validationError</li>
+                            }
+                        </ul>
+                    </MudAlert>
+                }
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           Class="calculate-button" Disabled="@(_isLoading || !IsPlanningPeriodValid)"
+                           OnClick="CalculateAsync">
+                    @if (_isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+                        <span>Calculating optimized recommendations...</span>
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="me-2" />
+                        <span>Calculate Optimized Recommendations</span>
+                    }
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Elevation="0" Class="optimizer-panel results-panel">
+                <MudPaper Elevation="0" Class="how-it-works">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" />
+                    <MudStack Spacing="0">
+                        <MudText Class="how-title">How it works</MudText>
+                        <MudText Class="how-description">The optimizer uses forecast prices and plant constraints to recommend recovery fractions for each train over the selected planning horizon.</MudText>
+                    </MudStack>
+                </MudPaper>
+
+                <div class="results-heading">
+                    <div>
+                        <MudText Typo="Typo.h2">Optimization Results</MudText>
+                        <MudText Class="panel-subtitle">Optimal target ethane recovery recommendations</MudText>
+                    </div>
+                    @if (_result is not null)
+                    {
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="completion-summary">
+                            <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle">Completed</MudChip>
+                            <MudStack Spacing="0">
+                                @if (CompletedAt is DateTimeOffset completedAt)
+                                {
+                                    <MudText Class="run-detail">Run on @completedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt", CultureInfo.InvariantCulture)</MudText>
+                                }
+                                @if (Elapsed is TimeSpan elapsed)
+                                {
+                                    <MudText Class="run-detail">Duration: @elapsed.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) seconds</MudText>
+                                }
+                            </MudStack>
+                        </MudStack>
+                    }
+                </div>
+
+                @if (_errorMessage is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Class="result-error">
+                        @_errorMessage
+                        @if (!string.IsNullOrWhiteSpace(_apiDetail))
+                        {
+                            <div class="api-error-detail">@_apiDetail</div>
+                        }
+                        @if (_serverValidationErrors.Count > 0)
+                        {
+                            <ul class="validation-list">
+                                @foreach (KeyValuePair<string, string[]> error in _serverValidationErrors)
+                                {
+                                    @foreach (string message in error.Value)
+                                    {
+                                        <li><strong>@error.Key:</strong> @message</li>
+                                    }
+                                }
+                            </ul>
+                        }
+                    </MudAlert>
+                }
+
+                @if (_isLoading)
+                {
+                    <MudPaper Elevation="0" Class="kpi-card execution-state running" role="status">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="execution-label">Calculating optimized recommendations...</MudText>
+                    </MudPaper>
+                }
+                else if (_result is { } result && _completedRequest is { } completedRequest)
+                {
+                    <MudGrid Spacing="1" Class="kpi-grid summary-cards">
+                        <MudItem xs="6" xl="3">
+                            <MudPaper Elevation="0" Class="kpi-card summary-card">
+                                <MudText Class="kpi-label">Portfolio Margin</MudText>
+                                <MudText Class="kpi-value margin-value">@FormatMargin(result.PortfolioMarginUsd)</MudText>
+                                <MudText Class="kpi-caption">USD</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" xl="3">
+                            <MudPaper Elevation="0" Class="kpi-card summary-card">
+                                <MudText Class="kpi-label">Scenario ID</MudText>
+                                <MudText Class="kpi-value kpi-id">@result.ScenarioId</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" xl="3">
+                            <MudPaper Elevation="0" Class="kpi-card summary-card">
+                                <MudText Class="kpi-label">Status</MudText>
+                                <MudChip T="string" Color="@GetStatusColor(result.Status)" Variant="Variant.Outlined">@result.Status</MudChip>
+                                <MudText Class="kpi-caption">MIP Gap: @completedRequest.MipGap.ToString("0.####", CultureInfo.InvariantCulture)</MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" xl="3">
+                            <MudPaper Elevation="0" Class="kpi-card summary-card">
+                                <MudText Class="kpi-label">Time Limit</MudText>
+                                <MudText Class="kpi-value">@completedRequest.TimeLimitSec sec</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                    <MudText Class="result-period">
+                        @completedRequest.PlanningStartDate?.ToString("MMM dd, yyyy", CultureInfo.InvariantCulture) –
+                        @completedRequest.PlanningEndDate?.ToString("MMM dd, yyyy", CultureInfo.InvariantCulture)
+                        <span> · @completedRequest.HorizonDays days · @result.PlantRecovery.Select(item => item.Plant).Distinct(StringComparer.OrdinalIgnoreCase).Count() plants · @result.TrainSchedule.Count train-day rows</span>
+                    </MudText>
+                }
+                else if (!_isLoading)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="empty-results">
+                        No optimization results yet. Configure the planning period and optimizer parameters, then calculate optimized recommendations.
+                    </MudAlert>
+                }
+
+                <MudPaper Elevation="0" Class="result-section chart-section">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="chart-heading">
+                        <MudText Typo="Typo.h3" Class="result-section-title">Plant Recovery by Day</MudText>
+                        <MudText Class="chart-filter-label">Plant Filter</MudText>
+                    </MudStack>
+                    <div class="plant-focus-controls" role="group" aria-label="Filter chart by plant">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="_isLoading"
+                                   aria-pressed="@(_selectedChartPlant is null)"
+                                   Class="@(_selectedChartPlant is null ? "plant-focus-selected all-plants-selected" : "plant-focus-option")"
+                                   OnClick="@(() => SelectChartPlant(null))">All Plants</MudButton>
+                        @foreach (string plant in Plants)
+                        {
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="_isLoading"
+                                       aria-pressed="@string.Equals(_selectedChartPlant, plant, StringComparison.OrdinalIgnoreCase)"
+                                       Class="@(string.Equals(_selectedChartPlant, plant, StringComparison.OrdinalIgnoreCase) ? "plant-focus-selected" : "plant-focus-option")"
+                                       Style="@($"--plant-color: {GetPlantColor(plant)}")"
+                                       OnClick="@(() => SelectChartPlant(plant))">
+                                <span class="plant-color-dot" aria-hidden="true"></span>@plant
+                            </MudButton>
+                        }
+                    </div>
+                    @if (_isLoading)
+                    {
+                        <MudSkeleton Animation="Animation.Wave" Height="350px" Class="chart-skeleton" />
+                    }
+                    else if (_result is null)
+                    {
+                        <MudText Class="empty-state">Plant recovery chart will appear after optimization.</MudText>
+                    }
+                    else if (_chartSeries.Count == 0)
+                    {
+                        <MudText Class="empty-state">No plant recovery recommendations were returned.</MudText>
+                    }
+                    else
+                    {
+                        <MudChart @key="(_selectedChartPlant ?? string.Empty)" T="double" ChartType="ChartType.Line"
+                                  ChartSeries="VisibleChartSeries" ChartLabels="ChartLabels" ChartOptions="ChartOptions"
+                                  MatchBoundsToSize="true" Width="100%" Height="340px" />
+                    }
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="result-section table-section">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="grid-heading">
+                        <MudText Typo="Typo.h3" Class="result-section-title">Plant Recovery Schedule (All Plants)</MudText>
+                        @if (Plants.Count > 0)
+                        {
+                            <MudTextField @bind-Value="_plantFilter" Label="Search plant..." Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" Immediate="true" Disabled="_isLoading" Class="grid-filter" />
+                        }
+                    </MudStack>
+                    @if (_result is null)
+                    {
+                        <MudText Class="empty-state">No optimization results yet. Configure the planning period and calculate recommendations.</MudText>
+                    }
+                    else if (PlantRecoveryGrid.Count == 0)
+                    {
+                        <MudText Class="empty-state">No plant recovery recommendations were returned.</MudText>
+                    }
+                    else
+                    {
+                        <div class="recovery-table-scroll" tabindex="0" role="region" aria-label="All plant recovery values by planning day">
+                            <MudTable T="PlantRecoveryGridRow" Items="PlantRecoveryGrid"
+                                      RowClassFunc="GetGridRowClass" Dense="true" Hover="true"
+                                      Breakpoint="Breakpoint.None" Elevation="0" Class="recovery-matrix">
+                                <HeaderContent>
+                                    <MudTh Class="plant-sticky-column">Plant</MudTh>
+                                    @foreach (int day in RecoveryDays)
+                                    {
+                                        <MudTh Class="@GetDayBoundaryClass(day)">@GetGridDayHeader(day)</MudTh>
+                                    }
+                                    <MudTh Class="average-column">Avg</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="row">
+                                    <MudTd Class="plant-sticky-column" Style="@($"--plant-color: {GetPlantColor(row.Plant)}")">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Class="plant-row-button"
+                                                   OnClick="@(() => SelectGridPlant(row.Plant))">
+                                            <span class="plant-color-dot" aria-hidden="true"></span>@row.Plant
+                                        </MudButton>
+                                    </MudTd>
+                                    @foreach (int day in row.Days)
+                                    {
+                                        <MudTd Class="@GetDayBoundaryClass(day)">@GetGridRecovery(row, day)</MudTd>
+                                    }
+                                    <MudTd Class="average-column">@(row.AverageRecovery is double average ? FormatRecovery(average) : "—")</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </div>
+                    }
+                </MudPaper>
+
+                <MudExpansionPanels Class="train-overrides">
+                    <MudExpansionPanel Text="Train Schedule" Dense="true" Disabled="_isLoading">
+                        @if (_result is null || _result.TrainSchedule.Count == 0)
+                        {
+                            <MudText Class="empty-state">No train schedule rows were returned.</MudText>
+                        }
+                        else
+                        {
+                            <MudGrid Spacing="2" Class="schedule-filters">
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudSelect T="string" @bind-Value="_schedulePlantFilter" Label="Plant" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                        <MudSelectItem Value="@("All")">All plants</MudSelectItem>
+                                        @foreach (string plant in _result.TrainSchedule.Select(row => row.Plant).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
+                                        {
+                                            <MudSelectItem Value="@plant">@plant</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudTextField @bind-Value="_scheduleTrainFilter" Label="Train" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudSelect T="string" @bind-Value="_scheduleChangedFilter" Label="Changed" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                        <MudSelectItem Value="@("All")">All rows</MudSelectItem>
+                                        <MudSelectItem Value="@("Changed")">Changed</MudSelectItem>
+                                        <MudSelectItem Value="@("Unchanged")">Unchanged</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudNumericField T="int?" @bind-Value="_scheduleDayFilter" Label="Day" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                            <MudTable T="TrainDayDto" Items="FilteredTrainSchedule"
+                                      Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="schedule-table">
+                                <HeaderContent>
+                                    <MudTh><MudTableSortLabel T="TrainDayDto" SortBy="new Func<TrainDayDto, object>(item => item.Train)">Train</MudTableSortLabel></MudTh>
+                                    <MudTh><MudTableSortLabel T="TrainDayDto" SortBy="new Func<TrainDayDto, object>(item => item.Plant)">Plant</MudTableSortLabel></MudTh>
+                                    <MudTh><MudTableSortLabel T="TrainDayDto" SortBy="new Func<TrainDayDto, object>(item => item.Day)">Day</MudTableSortLabel></MudTh>
+                                    <MudTh><MudTableSortLabel T="TrainDayDto" SortBy="new Func<TrainDayDto, object>(item => item.Recovery)">Recovery</MudTableSortLabel></MudTh>
+                                    <MudTh>Changed</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="row">
+                                    <MudTd DataLabel="Train">@row.Train</MudTd>
+                                    <MudTd DataLabel="Plant">@row.Plant</MudTd>
+                                    <MudTd DataLabel="Day">@row.Day</MudTd>
+                                    <MudTd DataLabel="Recovery">@FormatRecovery(row.Recovery)</MudTd>
+                                    <MudTd DataLabel="Changed">
+                                        <MudChip T="string" Size="Size.Small" Color="@(row.Changed ? Color.Warning : Color.Default)" Variant="Variant.Outlined">
+                                            @(row.Changed ? "Changed" : "Unchanged")
+                                        </MudChip>
+                                    </MudTd>
+                                </RowTemplate>
+                                <PagerContent>
+                                    <MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" />
+                                </PagerContent>
+                            </MudTable>
+                        }
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</section>

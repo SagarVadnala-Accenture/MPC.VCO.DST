@@ -1,0 +1,29 @@
+<MudDrawer Open="Open" OpenChanged="OpenChanged" Anchor="Anchor.End" Variant="DrawerVariant.Temporary" Width="420px" Class="configuration-drawer">
+    <MudFocusTrap>
+        <aside class="side-panel" role="dialog" aria-modal="true" aria-labelledby="configuration-title" @onkeydown="HandleKey">
+            <div class="drawer-title">
+                <MudText Typo="Typo.h2" id="configuration-title">Create a Model</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="Close" aria-label="Close configuration" />
+            </div>
+            <EditForm Model="_configuration" OnValidSubmit="Create">
+                <DataAnnotationsValidator />
+                <div class="drawer-fields">
+                    <MudSelect T="string" @bind-Value="_configuration.Status" Label="Status" Variant="Variant.Outlined" For="@(() => _configuration.Status)">
+                        <MudSelectItem Value="@("Draft")">Draft</MudSelectItem>
+                        <MudSelectItem Value="@("Reviewed")">Reviewed</MudSelectItem>
+                        <MudSelectItem Value="@("Executable")">Executable</MudSelectItem>
+                    </MudSelect>
+                    <MudTextField T="string" @bind-Value="_configuration.ScopeType" Label="Scope Type" Variant="Variant.Outlined" Required="true" />
+                    <MudTextField T="string" @bind-Value="_configuration.ScopeName" Label="Scope Name" Variant="Variant.Outlined" Required="true" />
+                    <MudTextField T="string" @bind-Value="_configuration.ModelType" Label="Model Type" Variant="Variant.Outlined" Required="true" />
+                    <MudNumericField T="decimal" @bind-Value="_configuration.EthanePriceUsdPerGal" Label="Ethane Price ($/gal)" Variant="Variant.Outlined" Min="0.01m" Step="0.01m" Format="0.00" Required="true" />
+                    <MudNumericField T="decimal" @bind-Value="_configuration.NaturalGasPriceUsdPerMmbtu" Label="NAT Gas Price ($/MMBtu)" Variant="Variant.Outlined" Min="0.01m" Step="0.01m" Format="0.00" Required="true" />
+                </div>
+                <div class="drawer-actions">
+                    <MudButton OnClick="Close">Cancel</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="_saving">Create Model</MudButton>
+                </div>
+            </EditForm>
+        </aside>
+    </MudFocusTrap>
+</MudDrawer>

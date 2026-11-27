@@ -1,0 +1,9 @@
+<span class="model-label tone-@Color.ToString().ToLowerInvariant() @(Variant == Variant.Outlined ? "outlined" : "filled")">
+    <MudChip T="string" Color="Color" Variant="Variant" Class="label-chip">@Text</MudChip>
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+    [Parameter] public Color Color { get; set; } = Color.Default;
+    [Parameter] public Variant Variant { get; set; } = Variant.Filled;
+}

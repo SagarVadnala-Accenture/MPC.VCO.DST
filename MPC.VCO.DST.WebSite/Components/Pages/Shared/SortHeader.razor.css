@@ -1,0 +1,6 @@
+.sort-header { display: block; }
+::deep .mud-tooltip-root { display: block; width: 100%; }
+::deep .sort-button { width: 100%; padding: 0; min-width: 0; color: #fff; height: 40px; font-size: 12px; font-weight: 600; text-align: left; }
+::deep .sort-button .mud-button-label { display: flex; justify-content: space-between; width: 100%; white-space: nowrap; }
+::deep .sort-button img { display: block; flex: none; opacity: 0.65; }
+::deep .sort-button img.active { opacity: 1; }

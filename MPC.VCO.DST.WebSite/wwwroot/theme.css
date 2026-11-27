@@ -1,0 +1,84 @@
+:root {
+    /* Brand palette */
+    --brand-color: #2a3e5a;
+    --primary-color: #00509e;
+    --primary-hover: #3b6ea2;
+    --primary-light: #f6f7fa;
+    --primary-soft: #eaf2fb;
+    --primary-tint: #ddeafa;
+    --primary-muted: #3193c6;
+    --primary-deep: #0c2a6b;
+    --primary-link: #305890;
+    --primary-disabled: #a9bfd9;
+    /* Semantic colors */
+    --page-background: #f8f8f8;
+    --panel-background: #fff;
+    --label-text: #424242;
+    --heading-text: #5a5a5a;
+    --muted-text: #a0a0a0;
+    --subtle-text: #a6a6a6;
+    --secondary-text: #7a7a7a;
+    --soft-text: #828282;
+    --strong-text: #3d3d3d;
+    --navigation-text: #4c4d4e;
+    --muted-strong-text: #9a9a9a;
+    --disabled-text: #adadad;
+    --chip-muted-text: #9b9b9b;
+    --light-text: #fff;
+    --dark-border: #212121;
+    --border-color: #e0e0e0;
+    --border-subtle: #e7e7e7;
+    --border-soft: #ededed;
+    --input-border: #bdbdbd;
+    --timeline-divider: #ddd9d9;
+    --logout-text: #e1e1e1;
+    --status-success: #007834;
+    --status-error: #a70007;
+    --error-background: #fac8c8;
+    --error-surface: #b32121;
+    --draft-background: #dadada;
+    --reviewed-background: #ffd4c6;
+    --reviewed-text: #b52a00;
+    --executable-background: #c8f5d4;
+    --executable-text: #004826;
+    --avatar-background: #ebebeb;
+    --avatar-text: #595959;
+    --table-header-background: var(--primary-muted);
+    --table-row-alternate: #eff7fc;
+    --table-row-hover: var(--primary-tint);
+    --card-hover: #f1f6fc;
+    --card-selected-background-top: #e3edfd;
+    --mention-hover-background: #f1f6fb;
+    --mention-highlight-background: #edf4fb;
+    --card-selected-text: var(--primary-deep);
+    --state-icon-background: #c8dcfa;
+    --notes-background: #f9f9f9;
+    --cycle-navigation-background: #23456c;
+    --tab-text: #7b8aa0;
+    --reconnect-primary: #6b9ed2;
+    --reconnect-highlight: #0087ff;
+    --divider-on-dark: rgb(255 255 255 / 20%);
+    /* Typography, shape, and elevation */
+    --font-family-body: 'Roboto', sans-serif;
+    --font-family-ui: 'Inter', sans-serif;
+    --radius-small: 4px;
+    --radius-medium: 8px;
+    --radius-large: 12px;
+    --radius-pill: 999px; 
+    --shadow-card: 4px 4px 16px #0000001a;
+    --shadow-soft: 4px 4px 8px #0000001a;
+    --shadow-panel-slide: -4px 0 16px #0000001a;
+    --shadow-popover: 0 4px 14px #0000001f;
+    --shadow-navigation: 0 2px 8px #0000001a;
+    --shadow-reconnect: 0 3px 6px 2px rgb(0 0 0 / 30%);
+    --overlay-backdrop: rgb(0 0 0 / 40%);
+}
+
+.mud-theme-provider {
+    --mud-palette-primary: var(--primary-color) !important;
+    --mud-palette-primary-text: var(--light-text) !important;
+    --mud-palette-secondary: var(--brand-color) ;
+    --mud-palette-background: var(--page-background) !important;
+    --mud-palette-surface: var(--panel-background) !important;
+    --mud-palette-success: var(--status-success) !important;
+}

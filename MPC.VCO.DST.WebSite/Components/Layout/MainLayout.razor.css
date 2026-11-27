@@ -1,0 +1,25 @@
+.application-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+main { flex: 1; min-width: 0; }
+footer { min-height: 48px; padding: 12px 40px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--brand-color); color: var(--light-text); }
+footer ::deep .network-map { color: var(--light-text); font-size: 14px; text-decoration: underline; padding: 4px; }
+footer span { font-size: 12px; font-weight: 300; }
+@media (max-width: 600px) { footer { padding-inline: 16px; } }
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 1000;
+    padding: 12px 48px 12px 24px;
+    background: var(--reviewed-background);
+    color: var(--label-text);
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}

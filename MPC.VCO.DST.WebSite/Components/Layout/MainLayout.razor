@@ -1,0 +1,39 @@
+﻿
+@inherits LayoutComponentBase
+@inject ISnackbar Snackbar
+
+<MudThemeProvider Theme="Theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div class="application-shell">
+    <ApplicationHeader />
+    <main>@Body</main>
+    <footer>
+        <MudButton OnClick="ShowNetworkMap" Class="network-map">Network Map</MudButton>
+        <span>&copy; Marathon Petroleum @DateTime.Now.Year</span>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <button class="dismiss" aria-label="Dismiss error">X</button>
+</div>
+
+@code {
+    private void ShowNetworkMap() => Snackbar.Add("Network map data is not connected in this preview.", Severity.Info);
+
+    private static readonly MudTheme Theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#00509e",
+            Secondary = "#2a3e5a",
+            Background = "#f8f8f8",
+            Surface = "#ffffff",
+            Success = "#007834"
+        }
+    }; 
+}

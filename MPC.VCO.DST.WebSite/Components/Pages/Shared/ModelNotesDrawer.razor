@@ -1,0 +1,169 @@
+@using System.Globalization
+@using MPC.VCO.DST.WebSite.Services.ModelNotes
+@implements IAsyncDisposable
+
+<MudDrawer Open="Open" OpenChanged="OpenChanged" Anchor="Anchor.End" Variant="DrawerVariant.Temporary" Width="420px" Class="notes-drawer">
+    <MudFocusTrap>
+        <aside class="side-panel notes-panel" role="dialog" aria-modal="true" aria-labelledby="model-notes-title" @onkeydown="HandleKey">
+            <div class="drawer-title">
+                <MudText Typo="Typo.h2" id="model-notes-title">Model Notes</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="Close" aria-label="Close model notes" />
+            </div>
+
+            @if (Model is not null)
+            {
+                <div class="model-notes-identity">
+                    <div class="model-notes-identity-left">
+                        <MudText Typo="Typo.subtitle2" Class="model-id">@Model.Id</MudText>
+                        <ModelLabel Text="@Model.ModelType" Variant="Variant.Outlined" />
+                    </div>
+                    <ModelLabel Text="@Model.Status.ToString()" Color="StatusColor" />
+                </div>
+
+                <dl class="model-notes-summary" aria-label="Model summary">
+                    <div><dt>Created on</dt><dd>@FormatDate(Model.CreatedOn)</dd></div>
+                    <div><dt>AVG. Nat Gas Price</dt><dd>@FormatCurrency(Model.NaturalGasPrice, "/gal")</dd></div>
+                    <div><dt>AVG. Ethane Price</dt><dd>@FormatCurrency(Model.EthanePrice, "/gal")</dd></div>
+                    <div>
+                        <dt>Scope</dt>
+                        <dd class="scope-summary-value">
+                            <span class="scope-name">@FormatScope(Model.Scope)</span>
+                            <span class="scope-location">@FormatScope(Model.Location)</span>
+                        </dd>
+                    </div>
+                    @*  <div><dt>Average Recovery Position</dt><dd>@FormatRecovery(Model.Recovery)</dd></div> *@
+                    <div><dt>Expected Portfolio Value</dt><dd class="@GetExpectedValueClass(Model.ExpectedValue)">@FormatExpected(Model.ExpectedValue)</dd></div>
+                </dl>
+
+                <section class="add-note-section" aria-labelledby="add-note-label">
+                    <MudText Typo="Typo.subtitle2" id="add-note-label">
+                        Add a note
+                    </MudText>
+
+                    <div class="mention-editor" data-mention-open="@(_showMentionSuggestions ? "true" : "false")">
+                        <textarea @ref="_noteInput"
+                                  class="note-input"
+                                  value="@NoteDraft"
+                                  @oninput="HandleNoteInput"
+                                  rows="3"
+                                  maxlength="4000"
+                                  role="combobox"
+                                  aria-autocomplete="list"
+                                  aria-expanded="@_showMentionSuggestions"
+                                  aria-controls="mention-options"
+                                  aria-activedescendant="@GetActiveMentionOptionId()"
+                                  aria-label="Add model note"
+                                  @onblur="CloseMentionSuggestions"
+                                  placeholder="Type your note"></textarea>
+                        @if (_showMentionSuggestions)
+                        {
+                            <div class="mention-popup" id="mention-options" role="listbox" aria-label="Mention suggestions" aria-live="polite">
+                                @if (_mentionLoading)
+                                {
+                                    <div class="mention-state"><MudProgressCircular Size="Size.Small" Indeterminate="true" /><span>Searching group members…</span></div>
+                                }
+                                else if (_mentionError)
+                                {
+                                    <div class="mention-state mention-error" role="alert">
+                                        <span>Could not load group members.</span>
+                                        <button type="button" @onclick="RetryMentionSearchAsync">Retry</button>
+                                    </div>
+                                }
+                                else if (_mentionUsers.Count == 0)
+                                {
+                                    <div class="mention-state">No group members found.</div>
+                                }
+                                else
+                                {
+                                    @for (int index = 0; index < _mentionUsers.Count; index++)
+                                    {
+                                        MentionUser user = _mentionUsers[index];
+                                        int userIndex = index;
+                                        <button type="button"
+                                                id="mention-option-@userIndex"
+                                                class="mention-option @(userIndex == _selectedMentionIndex ? "selected" : null)"
+                                                role="option"
+                                                aria-selected="@(userIndex == _selectedMentionIndex)"
+                                                @onmousedown:preventDefault="true"
+                                                @onclick="() => SelectMentionAsync(user)">
+                                            <MudAvatar Class="mention-avatar" Size="Size.Small">@GetInitials(user.DisplayName)</MudAvatar>
+                                            <span class="mention-user-details">
+                                                <strong>@user.DisplayName</strong>
+                                                <small>@user.Email</small>
+                                            </span>
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               Class="post-note"
+                               Disabled="@(!CanPost)"
+                               OnClick="@PostRequested">
+                        Post
+                    </MudButton>
+                </section>
+
+
+                <section class="notes-timeline" aria-label="Notes timeline">
+                    @if (Loading)
+                    {
+                        <div class="state-message" role="status">
+                            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                            <MudText>Loading notes...</MudText>
+                        </div>
+                    }
+                    else if (LoadingError)
+                    {
+                        <div class="state-message" role="alert">
+                            <MudText>Could not load notes.</MudText>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="RetryRequested">Retry</MudButton>
+                        </div>
+                    }
+                    else if (Notes.Count == 0)
+                    {
+                        <div class="state-message" role="status">
+                            <MudText>No notes yet.</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (ModelNote note in Notes)
+                        {
+                            <article class="note-item" @key="note.NoteId">
+                                <div class="note-avatar-column">
+                                    <MudAvatar Class="note-avatar" Size="Size.Small">@GetInitials(note.FullName)</MudAvatar>
+                                </div>
+                                <div class="note-content">
+                                     <div class="note-header">
+                                       @*  <strong class="note-author">@FormatName(note.FullName)</strong> *@
+                                        <time class="note-time" datetime="@note.CreatedOn.ToString("o")">
+                                            @note.CreatedOn.ToString("M/d/yyyy – HH:mm", CultureInfo.InvariantCulture)
+                                        </time>
+                                    </div>
+                                    <p>
+                                        @foreach (NoteTextSegment segment in GetNoteTextSegments(note))
+                                        {
+                                            if (segment.IsMention)
+                                            {
+                                                <span class="note-mention">@segment.Text</span>
+                                            }
+                                            else
+                                            {
+                                                @segment.Text
+                                            }
+                                        }
+                                    </p>
+                                </div>
+                            </article>
+                        }
+                    }
+                </section>
+            }
+        </aside>
+    </MudFocusTrap>
+</MudDrawer>
+

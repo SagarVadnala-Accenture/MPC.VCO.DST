@@ -1,0 +1,20 @@
+<div class="model-summary">
+    <div class="model-identity">
+        <strong>@Model.Id</strong>
+        <ModelLabel Text="@Model.ModelType" Variant="Variant.Outlined" />
+        <ModelLabel Text="@Model.Status.ToString()" Color="StatusColor" />
+    </div>
+    <dl class="model-details">
+        <div><dt>Created on</dt><dd>@Model.CreatedOn.ToString("MM/dd/yyyy")</dd></div>
+        <div><dt>Scope</dt><dd>@Model.Scope<small>@Model.Location</small></dd></div>
+        <div><dt>Ethane Price</dt><dd>$@Model.EthanePrice.ToString("0.00")/gal</dd></div>
+        <div><dt>NAT Gas Price</dt><dd>$@Model.NaturalGasPrice.ToString("0.00")/MMBtu</dd></div>
+      @*   <div><dt>Average Recovery Position</dt><dd>@Model.RecoveryText</dd></div> *@
+        <div><dt>Published Expected Value</dt><dd class="positive-value">@Model.ExpectedValueText</dd></div>
+    </dl>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ModelRun Model { get; set; } = default!;
+    private Color StatusColor => Model.Status switch { ModelStatus.Executable => Color.Success, ModelStatus.Reviewed => Color.Warning, _ => Color.Default };
+}

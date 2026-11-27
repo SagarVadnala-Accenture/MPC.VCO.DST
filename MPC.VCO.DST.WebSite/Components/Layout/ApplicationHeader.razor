@@ -1,0 +1,31 @@
+@implements IDisposable
+
+<header class="application-header">
+    <div class="header-bar">
+        <a class="brand" href="/" aria-label="VCO DST home">
+            <img src="assets/marathon-logo.svg" alt="Marathon Petroleum" />
+            <div>
+                <strong>VCO DST</strong>
+                <span>Value Chain Optimization Decision Support Tool</span>
+            </div>
+        </a>
+        <div class="account">
+            <time class="current-date" datetime="@CurrentDateIso">@DisplayDate</time>
+            <span class="account-divider" aria-hidden="true"></span>
+            <AuthorizeView>
+                <Authorized>
+                    <MudAvatar Class="user-avatar" Size="Size.Small">@UserInitials</MudAvatar>
+                    <span>@DisplayName</span>
+                    <MudLink Href="/MicrosoftIdentity/Account/SignOut" Class="logout-button">Logout</MudLink>
+                </Authorized>
+                <NotAuthorized>
+                    <MudLink Href="/MicrosoftIdentity/Account/SignIn">Sign in</MudLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <MudLink Href="/" Class="home-link"><img src="assets/home.svg" alt="" />Home</MudLink>
+    </nav>
+</header>
+

@@ -1,0 +1,36 @@
+.model-label { display: inline-flex; }
+
+.model-label ::deep .label-chip {
+    height: 28px;
+    margin: 0;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-family: var(--font-family-ui);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
+.filled.tone-default ::deep .label-chip {
+    background: var(--draft-background);
+    color: var(--label-text);
+}
+
+.filled.tone-warning ::deep .label-chip {
+    background: var(--reviewed-background);
+    color: var(--reviewed-text);
+}
+
+.filled.tone-success ::deep .label-chip {
+    background: var(--executable-background);
+    color: var(--executable-text);
+}
+
+.outlined ::deep .label-chip {
+    height: 30px;
+    background: var(--panel-background);
+    color: var(--label-text);
+    border: 1px solid var(--label-text);
+}
